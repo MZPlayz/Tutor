@@ -67,9 +67,11 @@ export default function Home() {
     return () => { window.removeEventListener("mousemove", onMove); cancelAnimationFrame(raf); };
   }, []);
 
-  // Auth guard
+  // Auth guard - only redirect if we have a user session loaded
   useEffect(() => {
-    if (!loading && !user) router.push("/auth/login");
+    if (loading) return;
+    // If user exists, show home; if not, still show home (public)
+    // Auth required routes are handled separately
   }, [user, loading, router]);
 
   // Close menu on outside click
@@ -92,7 +94,8 @@ export default function Home() {
     router.push(`/search?${params}`);
   }
 
-  if (loading || !user) {
+  // Show loading only on initial load, then always show content
+  if (loading) {
     return (
       <div className="min-h-screen bg-[#07050a] flex items-center justify-center">
         <motion.div
@@ -109,6 +112,8 @@ export default function Home() {
   const initials = userData?.name
     ? userData.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
     : "U";
+
+  const isLoggedIn = !!user;
 
   return (
     <div className="min-h-screen bg-[#07050a] relative overflow-hidden">
@@ -153,51 +158,60 @@ export default function Home() {
         </div>
 
         {/* User menu */}
-        <div className="relative" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={() => setMenuOpen((p) => !p)}
-            className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-[10px] bg-white/[0.04] border border-white/[0.07] hover:bg-white/[0.06] transition-colors"
-          >
-            <div className="w-6 h-6 rounded-full bg-[#f05323]/20 border border-[#f05323]/25 flex items-center justify-center text-[10px] font-bold text-[#f05323]">
-              {initials}
-            </div>
-            <span className="text-[12.5px] font-medium text-white/60 max-w-[80px] truncate">
-              {userData?.name || "Account"}
-            </span>
-            <motion.div animate={{ rotate: menuOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
-              <IconChevronDown size={13} className="text-white/30" strokeWidth={2} />
-            </motion.div>
-          </button>
-
-          <AnimatePresence>
-            {menuOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                transition={{ duration: 0.18, ease: E }}
-                className="absolute right-0 mt-2 w-44 rounded-[14px] bg-[rgba(14,11,18,0.97)] backdrop-blur-2xl border border-white/[0.07] shadow-[0_20px_56px_rgba(0,0,0,0.6)] overflow-hidden z-30"
-              >
-                <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-                <div className="p-1.5 space-y-0.5">
-                  <MenuItem icon={<IconWallet size={13} strokeWidth={2} />} label="My Wallet" />
-                  <MenuItem icon={<IconCalendar size={13} strokeWidth={2} />} label="My Bookings" />
-                  <MenuItem icon={<IconUser size={13} strokeWidth={2} />} label="Profile" />
-                </div>
-                <div className="h-px bg-white/[0.05] mx-2" />
-                <div className="p-1.5">
-                  <button
-                    onClick={handleSignOut}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-[9px] text-[12px] font-medium text-red-400/80 hover:text-red-400 hover:bg-red-400/[0.07] transition-colors"
-                  >
-                    <IconLogout size={13} strokeWidth={2} />
-                    Sign Out
-                  </button>
-                </div>
+        {isLoggedIn ? (
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setMenuOpen((p) => !p)}
+              className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-[10px] bg-white/[0.04] border border-white/[0.07] hover:bg-white/[0.06] transition-colors"
+            >
+              <div className="w-6 h-6 rounded-full bg-[#f05323]/20 border border-[#f05323]/25 flex items-center justify-center text-[10px] font-bold text-[#f05323]">
+                {initials}
+              </div>
+              <span className="text-[12.5px] font-medium text-white/60 max-w-[80px] truncate">
+                {userData?.name || "Account"}
+              </span>
+              <motion.div animate={{ rotate: menuOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                <IconChevronDown size={13} className="text-white/30" strokeWidth={2} />
               </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+            </button>
+
+            <AnimatePresence>
+              {menuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                  transition={{ duration: 0.18, ease: E }}
+                  className="absolute right-0 mt-2 w-44 rounded-[14px] bg-[rgba(14,11,18,0.97)] backdrop-blur-2xl border border-white/[0.07] shadow-[0_20px_56px_rgba(0,0,0,0.6)] overflow-hidden z-30"
+                >
+                  <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+                  <div className="p-1.5 space-y-0.5">
+                    <MenuItem icon={<IconWallet size={13} strokeWidth={2} />} label="My Wallet" />
+                    <MenuItem icon={<IconCalendar size={13} strokeWidth={2} />} label="My Bookings" />
+                    <MenuItem icon={<IconUser size={13} strokeWidth={2} />} label="Profile" />
+                  </div>
+                  <div className="h-px bg-white/[0.05] mx-2" />
+                  <div className="p-1.5">
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-[9px] text-[12px] font-medium text-red-400/80 hover:text-red-400 hover:bg-red-400/[0.07] transition-colors"
+                    >
+                      <IconLogout size={13} strokeWidth={2} />
+                      Sign Out
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <button
+            onClick={() => router.push("/auth/login")}
+            className="flex items-center gap-2 px-4 py-2 rounded-[10px] bg-[#f05323] text-white text-[12.5px] font-semibold hover:opacity-90 transition-opacity"
+          >
+            Sign In
+          </button>
+        )}
       </header>
 
       {/* ── Main ───────────────────────────────────────────── */}
