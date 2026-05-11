@@ -51,10 +51,14 @@ function SearchContent() {
   const router = useRouter();
   const area = searchParams.get("area") || "";
   const subject = searchParams.get("subject") || "";
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [loading, setLoading] = useState(true);
   const cursorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setSupabase(createClient());
+  }, []);
 
   // cursor glow
   useEffect(() => {
@@ -73,7 +77,7 @@ function SearchContent() {
   }, []);
 
   useEffect(() => {
-    if (!area) return;
+    if (!area || !supabase) return;
     async function fetchTutors() {
       setLoading(true);
       const { data, error } = await supabase
