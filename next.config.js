@@ -12,6 +12,10 @@ const nextConfig = {
       },
     ],
   },
+  experimental: {
+    // Disable middleware completely
+    excludeNextMiddlewareUrl: true,
+  },
 };
 
 module.exports = nextConfig;
