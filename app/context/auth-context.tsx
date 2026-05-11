@@ -59,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [supabase]);
 
   async function fetchUserData(userId: string) {
+    if (!supabase) return;
     const { data } = await supabase
       .from("User")
       .select("*")
@@ -72,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signInWithPhone(phone: string) {
+    if (!supabase) return;
     const formattedPhone = phone.startsWith("+88") ? phone : `+88${phone}`;
     const { error } = await supabase.auth.signInWithOtp({
       phone: formattedPhone,
@@ -80,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function verifyOTP(phone: string, token: string) {
+    if (!supabase) return;
     const formattedPhone = phone.startsWith("+88") ? phone : `+88${phone}`;
     
     const { data, error } = await supabase.auth.verifyOtp({
@@ -107,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    if (!supabase) return;
     await supabase.auth.signOut();
     setUser(null);
     setUserData(null);

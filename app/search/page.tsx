@@ -79,6 +79,7 @@ function SearchContent() {
   useEffect(() => {
     if (!area || !supabase) return;
     async function fetchTutors() {
+      if (!supabase) return;
       setLoading(true);
       const { data, error } = await supabase
         .from("Provider")
