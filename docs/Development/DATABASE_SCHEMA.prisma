@@ -1,0 +1,156 @@
+// docs/DATABASE_SCHEMA.prisma
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+model User {
+  id              String    @id @default(uuid())
+  phoneNumber     String    @unique
+  name            String?
+  // roles: ['client'] or ['client', 'tutor']
+  roles           String[]  @default(["client"]) 
+  // activeMode: 'client' or 'tutor' (drives the UI context)
+  activeMode      String    @default("client")
+  // role: USER, ADMIN, SUPER_ADMIN (for admin dashboard)
+  role            String    @default("USER")
+  walletBalance   Int       @default(0)
+  fcmToken        String?   // Firebase Cloud Messaging token
+  createdAt       DateTime  @default(now())
+  
+  providerProfile Provider?
+  bookingsAsClient Booking[] @relation("ClientBookings")
+  reportsFiled    Report[]  @relation("Reporter")
+  reportsReceived Report[]  @relation("Reported")
+}
+
+model Provider {
+  id                String    @id @default(uuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id])
+  
+  bio               String?
+  areaSlug          String    // e.g., 'tanbazar', 'fatullah'
+  serviceMode       String    @default("in_person") // in_person | online | both
+  verificationStatus String   @default("pending") // pending | approved | rejected
+  documentUrl       String?   // Cloudinary URL for NID/Student ID
+  isSuspended       Boolean   @default(false) // Auto-suspend after 2 strikes
+  
+  // Filters for Search
+  gender            String?   // male | female
+  university        String?   // e.g., 'BUET', 'DU'
+  educationLevel    String?   // e.g., 'Undergraduate'
+  
+  // Trust tracking
+  strikes           Int       @default(0) // Accumulate 2 = auto-suspend
+  completedSessions Int       @default(0) // For leveling
+  profileStrength   Int       @default(0) // 0-100, affects search ranking
+  
+  // Location for PostGIS (area-based search)
+  location          Unsupported("geography(Point, 4326)")?
+  
+  services          ProviderService[]
+  schedules         ProviderSchedule[]
+  bookings          Booking[]
+  payoutRequests    PayoutRequest[]
+}
+
+model ProviderService {
+  id          String   @id @default(uuid())
+  providerId  String
+  provider    Provider @relation(fields: [providerId], references: [id])
+  subject     String   // e.g., "HSC Physics"
+  ratePerHour Int
+  bookings    Booking[]
+}
+
+model ProviderSchedule {
+  id         String   @id @default(uuid())
+  providerId String
+  provider   Provider @relation(fields: [providerId], references: [id])
+  dayOfWeek  Int      // 0 (Sunday) to 6 (Saturday)
+  startTime  String   // "HH:mm" format
+  endTime    String   // "HH:mm" format
+}
+
+model Booking {
+  id              String   @id @default(uuid())
+  providerId      String
+  clientId        String
+  serviceId       String
+  parentBookingId String?  // For recurring bookings - links to parent bundle
+  
+  provider        Provider @relation(fields: [providerId], references: [id])
+  client          User     @relation("ClientBookings", fields: [clientId], references: [id])
+  service         ProviderService @relation(fields: [serviceId], references: [id])
+  parent          Booking? @relation("RecurringBundle", fields: [parentBookingId], references: [id])
+  children        Booking[] @relation("RecurringBundle")
+
+  bookingDate     DateTime
+  slotStart       DateTime
+  slotEnd         DateTime
+  
+  status          String   @default("pending") // pending | confirmed | completed | disputed | refunded | cancelled
+  amount          Int      // Tutor's rate
+  platformFee     Int      // 5% of amount (calculated on gross)
+  
+  // Landmark-based address (collected during checkout)
+  roadNo          String?
+  houseNo         String?
+  landmark        String?
+  
+  // Check-in for dispute proof
+  checkInTime     DateTime? // When tutor clicks "I am at landmark"
+  checkInGeo      Unsupported("geography(Point, 4326)")? // GPS coords at check-in
+  
+  // Payment idempotency
+  idempotencyKey  String?  @unique // Prevents double-payment
+  sslTrxId        String?  @unique // SSLCommerz Transaction ID
+  createdAt       DateTime @default(now())
+  reports         Report[]
+}
+
+model PayoutRequest {
+  id          String    @id @default(uuid())
+  providerId  String
+  provider    Provider  @relation(fields: [providerId], references: [id])
+  amount      Int
+  bkashNumber String
+  status      String    @default("pending") // pending | paid | rejected
+  createdAt   DateTime  @default(now())
+  paidAt      DateTime?
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  bookingId   String
+  reporterId  String
+  reportedId  String
+  reason      String   // harassment | no_show | fraud | other
+  detail      String?
+  
+  booking     Booking  @relation(fields: [bookingId], references: [id])
+  reporter    User     @relation("Reporter", fields: [reporterId], references: [id])
+  reported    User     @relation("Reported", fields: [reportedId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+// ---------------------------------------------------------
+// POST-MIGRATION SQL STEPS (Manual run in Neon Console):
+// 1. CREATE EXTENSION IF NOT EXISTS postgis;
+// 2. ALTER TABLE "Provider" ADD COLUMN "location" geography(Point, 4326);
+// 3. CREATE INDEX provider_location_idx ON "Provider" USING GIST (location);
+// 4. ALTER TABLE "Booking" ADD COLUMN "check_in_geo" geography(Point, 4326);
+// 5. CREATE INDEX booking_checkin_geo_idx ON "Booking" USING GIST (check_in_geo);
+// 6. CREATE INDEX provider_area_slug_idx ON "Provider" (areaSlug);
+// 7. CREATE INDEX provider_verification_idx ON "Provider" (verificationStatus);
+// 8. CREATE INDEX booking_status_idx ON "Booking" (status);
+// 9. CREATE INDEX booking_slot_start_idx ON "Booking" (slotStart);
+// ---------------------------------------------------------

@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// PostGIS: Enable in Supabase SQL Editor: CREATE EXTENSION IF NOT EXISTS postgis;
+
+model User {
+  id              String    @id @default(uuid())
+  phoneNumber     String    @unique
+  name            String?
+  roles           String[]  @default(["client"])
+  activeMode      String    @default("client")
+  role            String    @default("USER")
+  walletBalance   Int       @default(0)
+  fcmToken        String?
+  createdAt       DateTime  @default(now())
+
+  providerProfile Provider?
+  bookingsAsClient Booking[] @relation("ClientBookings")
+  reportsFiled    Report[]  @relation("Reporter")
+  reportsReceived Report[]  @relation("Reported")
+}
+
+model Provider {
+  id                  String    @id @default(uuid())
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id])
+
+  bio                 String?
+  areaSlug            String
+  serviceMode         String    @default("in_person")
+  verificationStatus  String    @default("pending")
+  documentUrl         String?
+  isSuspended         Boolean   @default(false)
+
+  gender              String?
+  university          String?
+  educationLevel      String?
+
+  strikes             Int       @default(0)
+  completedSessions   Int       @default(0)
+  profileStrength     Int       @default(0)
+
+  location            Json? // { lat: number, lng: number } - use PostGIS later
+
+  services            ProviderService[]
+  schedules           ProviderSchedule[]
+  bookings            Booking[]
+  payoutRequests      PayoutRequest[]
+}
+
+model ProviderService {
+  id          String   @id @default(uuid())
+  providerId  String
+  provider    Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  subject     String
+  ratePerHour Int
+  bookings    Booking[]
+}
+
+model ProviderSchedule {
+  id         String   @id @default(uuid())
+  providerId String
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
+}
+
+model Booking {
+  id              String   @id @default(uuid())
+  providerId      String
+  clientId        String
+  serviceId       String
+  parentBookingId String?
+
+  provider        Provider @relation(fields: [providerId], references: [id])
+  client          User     @relation("ClientBookings", fields: [clientId], references: [id])
+  service         ProviderService @relation(fields: [serviceId], references: [id])
+  parent          Booking? @relation("RecurringBundle", fields: [parentBookingId], references: [id])
+  children        Booking[] @relation("RecurringBundle")
+
+  bookingDate     DateTime
+  slotStart       DateTime
+  slotEnd         DateTime
+
+  status          String   @default("pending")
+  amount          Int
+  platformFee     Int
+
+  roadNo          String?
+  houseNo         String?
+  landmark        String?
+
+  checkInTime     DateTime?
+  checkInGeo      Json? // { lat: number, lng: number }
+
+  idempotencyKey  String?  @unique
+  sslTrxId        String?  @unique
+  createdAt       DateTime @default(now())
+  reports         Report[]
+}
+
+model PayoutRequest {
+  id          String    @id @default(uuid())
+  providerId  String
+  provider    Provider  @relation(fields: [providerId], references: [id])
+  amount      Int
+  bkashNumber String
+  status      String    @default("pending")
+  createdAt   DateTime  @default(now())
+  paidAt      DateTime?
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  bookingId   String
+  reporterId  String
+  reportedId  String
+  reason      String
+  detail      String?
+
+  booking     Booking  @relation(fields: [bookingId], references: [id])
+  reporter    User     @relation("Reporter", fields: [reporterId], references: [id])
+  reported    User     @relation("Reported", fields: [reportedId], references: [id])
+  createdAt   DateTime @default(now())
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Tutor",
+  "short_name": "Tutor",
+  "description": "Find local tutors in Dhaka and Narayanganj",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fef8f1",
+  "theme_color": "#f05323",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
