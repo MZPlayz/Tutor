@@ -20,17 +20,41 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Local env files
+# Local env files - NEVER commit secrets
 .env
-.env*.local
+.env.local
+.env.development
 .env.production
 
 # Vercel
 .vercel
 
-# Typescript
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
 
-# Prisma
+# Prisma - migrations contain sensitive DB state
 prisma/migrations/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Agent configs (keep if needed, but usually private)
+.agents/
+.qwen/
+.claude/
+
+# Logs
+logs/
+*.log
+
+# Supabase local dev
+.supabase/
+
+# Temp files
+tmp/
+temp/
+*.tmp
